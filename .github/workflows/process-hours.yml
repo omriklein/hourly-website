@@ -80,13 +80,42 @@ jobs:
       - name: Convert CSV to dated XLSX
         run: python3 csv_to_xlsx.py output.csv
 
+      - name: Update README with latest report date
+        run: |
+          python3 << 'EOF'
+          from datetime import datetime
+          import re
+
+          # Get current date
+          current_date = datetime.now().strftime('%Y-%m-%d')
+
+          # Read README
+          with open('README.md', 'r', encoding='utf-8') as f:
+              readme_content = f.read()
+
+          # Replace the date in the View Latest Report link
+          # Pattern matches: hours_YYYY-MM-DD.xlsx
+          pattern = r'hours_\d{4}-\d{2}-\d{2}\.xlsx'
+          replacement = f'hours_{current_date}.xlsx'
+
+          updated_content = re.sub(pattern, replacement, readme_content)
+
+          # Write back if changed
+          if updated_content != readme_content:
+              with open('README.md', 'w', encoding='utf-8') as f:
+                  f.write(updated_content)
+              print(f"Updated README with latest report date: {current_date}")
+          else:
+              print("README already up to date")
+          EOF
+
       - name: Commit and push changes
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
 
           # Add the files
-          git add input.txt output.csv reports/
+          git add input.txt output.csv reports/ README.md
 
           # Check if there are changes to commit
           if git diff --staged --quiet; then
