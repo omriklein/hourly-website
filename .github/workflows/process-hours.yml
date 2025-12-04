@@ -85,18 +85,32 @@ jobs:
           python3 << 'EOF'
           from datetime import datetime
           import re
+          import csv
 
-          # Get current date
-          current_date = datetime.now().strftime('%Y-%m-%d')
+          # Read the date from the CSV file (second line, first cell)
+          try:
+              with open('output.csv', 'r', encoding='utf-8') as f:
+                  reader = csv.reader(f)
+                  next(reader)  # Skip header
+                  first_row = next(reader)  # Get first data row
+                  first_date = first_row[0]  # First cell (date column)
+
+                  # Parse date (format: DD.MM.YYYY)
+                  date_obj = datetime.strptime(first_date, '%d.%m.%Y')
+                  month_year = date_obj.strftime('%m-%Y')
+                  print(f"Extracted month-year from CSV: {month_year}")
+          except Exception as e:
+              print(f"Warning: Could not read date from CSV, using current date. Error: {e}")
+              month_year = datetime.now().strftime('%m-%Y')
 
           # Read README
           with open('README.md', 'r', encoding='utf-8') as f:
               readme_content = f.read()
 
           # Replace the date in the View Latest Report link
-          # Pattern matches: hours_YYYY-MM-DD.xlsx
-          pattern = r'hours_\d{4}-\d{2}-\d{2}\.xlsx'
-          replacement = f'hours_{current_date}.xlsx'
+          # Pattern matches: hours_MM-YYYY.xlsx or hours_YYYY-MM-DD.xlsx (for backwards compatibility)
+          pattern = r'hours_\d{2,4}-\d{2}(?:-\d{2,4})?\.xlsx'
+          replacement = f'hours_{month_year}.xlsx'
 
           updated_content = re.sub(pattern, replacement, readme_content)
 
@@ -104,7 +118,7 @@ jobs:
           if updated_content != readme_content:
               with open('README.md', 'w', encoding='utf-8') as f:
                   f.write(updated_content)
-              print(f"Updated README with latest report date: {current_date}")
+              print(f"Updated README with latest report date: {month_year}")
           else:
               print("README already up to date")
           EOF

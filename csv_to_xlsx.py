@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Convert CSV file to XLSX with date-stamped filename.
-Reads output.csv and creates hours_YYYY-MM-DD.xlsx
+Convert CSV file to XLSX with month-year stamped filename.
+Reads output.csv and creates hours_MM-YYYY.xlsx based on the date in the CSV
 """
 
 import pandas as pd
@@ -33,12 +33,27 @@ def csv_to_xlsx(csv_path, output_dir="."):
         # Check if DataFrame is empty
         if df.empty:
             print("Warning: CSV file is empty")
+            # Use current date as fallback
+            month_year = datetime.now().strftime('%m-%Y')
         else:
             print(f"Read {len(df)} rows from CSV")
 
-        # Generate output filename with current date
-        current_date = datetime.now().strftime('%Y-%m-%d')
-        output_filename = f"hours_{current_date}.xlsx"
+            # Get the date from the first row, first column
+            # Expected format: DD.MM.YYYY (e.g., 26.08.2025)
+            first_date = df.iloc[0, 0]
+            print(f"First date in CSV: {first_date}")
+
+            # Parse the date (format: DD.MM.YYYY)
+            try:
+                date_obj = datetime.strptime(str(first_date), '%d.%m.%Y')
+                month_year = date_obj.strftime('%m-%Y')
+                print(f"Extracted month-year: {month_year}")
+            except ValueError as e:
+                print(f"Warning: Could not parse date '{first_date}', using current date. Error: {e}")
+                month_year = datetime.now().strftime('%m-%Y')
+
+        # Generate output filename with month-year from CSV
+        output_filename = f"hours_{month_year}.xlsx"
         output_path = os.path.join(output_dir, output_filename)
 
         # Write to XLSX file
