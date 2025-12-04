@@ -1,0 +1,95 @@
+name: Process Hours
+
+on:
+  push:
+    paths:
+      - 'input.txt'
+      - 'output.csv'
+  workflow_dispatch:
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Python dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install pandas openpyxl
+
+      - name: Clean weird characters from input.txt
+        run: |
+          python3 << 'EOF'
+          import re
+
+          # Read the input file
+          with open('input.txt', 'r', encoding='utf-8') as f:
+              content = f.read()
+
+          # Remove problematic Unicode characters
+          # U+200F: Right-to-Left Mark
+          # U+200E: Left-to-Right Mark
+          # U+200B: Zero Width Space
+          # U+200C: Zero Width Non-Joiner
+          # U+200D: Zero Width Joiner
+          # U+FEFF: Zero Width No-Break Space (BOM)
+          # U+202A-U+202E: Embedding and directional formatting characters
+          weird_chars = [
+              '\u200F',  # Right-to-Left Mark
+              '\u200E',  # Left-to-Right Mark
+              '\u200B',  # Zero Width Space
+              '\u200C',  # Zero Width Non-Joiner
+              '\u200D',  # Zero Width Joiner
+              '\uFEFF',  # Zero Width No-Break Space
+              '\u202A',  # Left-to-Right Embedding
+              '\u202B',  # Right-to-Left Embedding
+              '\u202C',  # Pop Directional Formatting
+              '\u202D',  # Left-to-Right Override
+              '\u202E',  # Right-to-Left Override
+          ]
+
+          # Remove all weird characters
+          cleaned_content = content
+          for char in weird_chars:
+              cleaned_content = cleaned_content.replace(char, '')
+
+          # Write back if changed
+          if cleaned_content != content:
+              with open('input.txt', 'w', encoding='utf-8') as f:
+                  f.write(cleaned_content)
+              print("Cleaned weird characters from input.txt")
+          else:
+              print("No weird characters found in input.txt")
+          EOF
+
+      - name: Run hours.py
+        run: python3 hours.py
+
+      - name: Convert CSV to dated XLSX
+        run: python3 csv_to_xlsx.py output.csv
+
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          # Add the files
+          git add input.txt output.csv reports/
+
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Process hours: cleaned input, generated CSV and dated XLSX [skip ci]"
+            git push
+          fi
